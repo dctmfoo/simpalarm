@@ -1,0 +1,114 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the leading v"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Import Developer ID certificate
+        shell: bash
+        env:
+          DEVELOPER_ID_APP_CERT_P12_BASE64: ${{ secrets.DEVELOPER_ID_APP_CERT_P12_BASE64 }}
+          DEVELOPER_ID_APP_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.BUILD_KEYCHAIN_PASSWORD }}
+        run: |
+          if [[ -z "${DEVELOPER_ID_APP_CERT_P12_BASE64:-}" || -z "${DEVELOPER_ID_APP_CERT_PASSWORD:-}" || -z "${KEYCHAIN_PASSWORD:-}" ]]; then
+            echo "Missing signing secrets. Configure DEVELOPER_ID_APP_CERT_P12_BASE64, DEVELOPER_ID_APP_CERT_PASSWORD, and BUILD_KEYCHAIN_PASSWORD." >&2
+            exit 1
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/simpalarm-signing.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/developer-id-app.p12"
+
+          echo "$DEVELOPER_ID_APP_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$DEVELOPER_ID_APP_CERT_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Store notarytool credentials
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ -z "${APPLE_ID:-}" || -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" || -z "${APPLE_TEAM_ID:-}" ]]; then
+            echo "Missing notarization secrets. Configure APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID." >&2
+            exit 1
+          fi
+
+          xcrun notarytool store-credentials "simpalarm-notary" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD"
+
+      - name: Package release
+        shell: bash
+        env:
+          DEVELOPER_ID_APP_SIGNING_IDENTITY: ${{ secrets.DEVELOPER_ID_APP_SIGNING_IDENTITY }}
+          NOTARYTOOL_KEYCHAIN_PROFILE: simpalarm-notary
+          SIMPALARM_BUILD: ${{ github.run_number }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/package_release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v$VERSION"
+          ZIP_PATH="dist/releases/$VERSION/SimpAlarm-$VERSION.zip"
+          CASK_PATH="dist/releases/$VERSION/simpalarm.rb"
+
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "SimpAlarm $VERSION" --notes "Signed and notarized macOS release."
+
+          gh release upload "$TAG" "$ZIP_PATH" --clobber
+          gh release upload "$TAG" "$CASK_PATH" --clobber
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: simpalarm-release-${{ steps.version.outputs.version }}
+          path: dist/releases/${{ steps.version.outputs.version }}
