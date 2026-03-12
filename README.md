@@ -15,7 +15,7 @@ SimpAlarm is a lightweight macOS menu bar alarm app inspired by the Windows Simp
 ## Run locally
 
 ```bash
-cd /Users/nags/Documents/simpalarm
+cd simpalarm
 ./scripts/run_app_bundle.sh
 ```
 

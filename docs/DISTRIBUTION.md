@@ -15,7 +15,7 @@ This repo can produce a Homebrew-installable macOS app without requiring an Xcod
 Build an unsigned local release:
 
 ```bash
-cd /Users/nags/Documents/simpalarm
+cd simpalarm
 chmod +x scripts/*.sh
 ./scripts/package_release.sh 0.1.0
 ```
