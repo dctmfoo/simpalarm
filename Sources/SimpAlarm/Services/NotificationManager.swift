@@ -1,5 +1,5 @@
 import Foundation
-import UserNotifications
+@preconcurrency import UserNotifications
 
 actor NotificationManager {
     private var center: UNUserNotificationCenter? {
