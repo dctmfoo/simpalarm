@@ -1,6 +1,6 @@
 # SimpAlarm
 
-SimpAlarm is a lightweight macOS menu bar alarm app inspired by the Windows SimpleAlarmApp workflow.
+SimpAlarm is a lightweight macOS menu bar alarm app.
 
 ## Features
 
