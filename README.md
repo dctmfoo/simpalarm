@@ -28,6 +28,6 @@ Release packaging, signing, notarization, and Homebrew cask generation are docum
 ## Planned install flow
 
 ```bash
-brew tap dctmfoo/homebrew-simpalarm
+brew tap dctmfoo/simpalarm
 brew install --cask simpalarm
 ```

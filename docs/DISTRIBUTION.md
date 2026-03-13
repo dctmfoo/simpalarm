@@ -79,7 +79,7 @@ git push
 Friends can then install with:
 
 ```bash
-brew tap dctmfoo/homebrew-simpalarm
+brew tap dctmfoo/simpalarm
 brew install --cask simpalarm
 ```
 
