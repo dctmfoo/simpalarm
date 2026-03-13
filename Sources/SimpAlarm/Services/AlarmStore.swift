@@ -30,6 +30,11 @@ final class AlarmStore {
 
     func handleApplicationLaunch() {
         soundPlayer.updateVolume(settings.alarmVolume)
+        let launchAtLoginEnabled = launchAtLoginManager.currentEnabledState()
+        if settings.launchAtLoginEnabled != launchAtLoginEnabled {
+            settings.launchAtLoginEnabled = launchAtLoginEnabled
+            persistSettings()
+        }
 
         Task {
             notificationStatus = await notificationManager.currentStatus()
@@ -133,12 +138,14 @@ final class AlarmStore {
     func applyLaunchAtLoginPreference(_ isEnabled: Bool) async {
         do {
             try launchAtLoginManager.setEnabled(isEnabled)
-            settings.launchAtLoginEnabled = isEnabled
-            persistSettings()
         } catch {
-            settings.launchAtLoginEnabled = false
+            settings.launchAtLoginEnabled = launchAtLoginManager.currentEnabledState()
             persistSettings()
+            return
         }
+
+        settings.launchAtLoginEnabled = launchAtLoginManager.currentEnabledState()
+        persistSettings()
     }
 
     func completeOnboarding(enableLaunchAtLogin: Bool) async {

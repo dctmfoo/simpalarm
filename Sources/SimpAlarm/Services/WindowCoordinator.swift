@@ -90,7 +90,7 @@ final class WindowCoordinator: NSObject, NSWindowDelegate {
         let window = makeWindow(
             identifier: "settings",
             title: "Settings",
-            size: NSSize(width: 420, height: 360),
+            size: NSSize(width: 520, height: 480),
             isResizable: false,
             isFloating: false,
             content: SettingsView(store: store)
