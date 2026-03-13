@@ -25,7 +25,7 @@ Use the bundled app path for testing menu bar behavior instead of `swift run`.
 
 Release packaging, signing, notarization, and Homebrew cask generation are documented in [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md).
 
-## Planned install flow
+## Install via Homebrew
 
 ```bash
 brew tap dctmfoo/simpalarm
